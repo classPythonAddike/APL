@@ -52,7 +52,7 @@ class Circuit():
         self.voltage_sources: Dict[str, Element] = dict()
         self.current_sources: Dict[str, Element] = dict()
         self.passive_elements: Dict[str, Element] = dict()
-        
+
         self.eqns = np.zeros((0, 0))
 
     @property
@@ -69,7 +69,7 @@ class Circuit():
 
     @property
     def num_eqns(self):
-        return len(self.nodes) + self.num_voltage_sources - 1
+        return len(self.nodes)
 
 
     def add_element(self, name: str, element_type: ElementType, value: str, node_1: str, node_2: str) -> None:
@@ -90,7 +90,7 @@ class Circuit():
 
         for line in circuit_file:
             line = line.strip()
-            
+
             if line == ".circuit":
                 start_circuit = True
             elif line == ".end":
@@ -104,7 +104,7 @@ class Circuit():
                 self.add_element(element_type=ElementType[params["name"][0]], **params)
         else:
             raise ValueError("Circuit was never ended!")
-        
+
         for idx, node in enumerate(self.graph):
             self.nodes[node] = idx;
 
@@ -115,11 +115,9 @@ class Circuit():
                     self.nodes["GND"] = 0
                     break
 
-        print(self.nodes)
-
 
     def generate_eqns(self) -> None:
-        eqns_copy = np.zeros((self.num_eqns + 1, self.num_eqns + 2))
+        eqns_copy = np.zeros((self.num_eqns + 1, self.num_eqns + 1))
 
         for idx, el_name in enumerate(self.passive_elements):
             element = self.passive_elements[el_name]
@@ -135,11 +133,46 @@ class Circuit():
             element = self.current_sources[el_name]
             node_1_idx = self.nodes[element.node_1]
             node_2_idx = self.nodes[element.node_2]
-            
+
             eqns_copy[node_1_idx][-1] -= element.value
             eqns_copy[node_2_idx][-1] += element.value
 
-        self.eqns = eqns_copy[1:,1:]
+        self.eqns = eqns_copy
+
+        self.supernodes = {i:set([i]) for i in self.nodes.keys()}
+        print(self.supernodes)
+
+        for el_name, element in self.voltage_sources.items():
+            for node, grouping in self.supernodes.items():
+                if element.node_1 in grouping and element.node_2 in grouping:
+                    raise ValueError()
+                elif element.node_1 in grouping:
+                    self.add_supernode_eqns(node, element.node_1, element.node_2, element.value)
+                    break
+                elif element.node_2 in grouping:
+                    self.add_supernode_eqns(node, node_2, node_1, -element.value)
+                    break
+            else:
+                self.add_supernode_eqns(element.node_1, element.node_1, element.node_2, -element.value)
+
+        print(self.supernodes, self.nodes)
+        self.eqns[-1][0] = 1
+        
+    def add_supernode_eqns(self, supernode: str, node_1: str, node_2: str, voltage: float):
+        self.supernodes[supernode] |= self.supernodes[node_2]
+        del self.supernodes[node_2]
+
+        print(supernode, node_1, node_2)
+        
+        supernode_idx = self.nodes[supernode]
+        node_1_idx = self.nodes[node_1]
+        node_2_idx = self.nodes[node_2]
+
+        self.eqns[supernode_idx] = self.eqns[supernode_idx] + self.eqns[node_2_idx]
+        self.eqns[node_2_idx] = 0
+        self.eqns[node_2_idx][node_1_idx] = 1
+        self.eqns[node_2_idx][node_2_idx] = -1
+        self.eqns[node_2_idx][-1] = voltage
 
 
 def evalSpice(filename: str):
@@ -153,9 +186,9 @@ def evalSpice(filename: str):
 
     circuit.generate_eqns()
     print(circuit.eqns, circuit.nodes)
-    print(np.linalg.solve(circuit.eqns[:,:-1], circuit.eqns[:,-1]))
-        
-    
+    solve = lambda A, b: np.linalg.lstsq(A, b)
+    print(solve(circuit.eqns[:,:-1], circuit.eqns[:,-1]))
+
     return ({}, {})
 
 

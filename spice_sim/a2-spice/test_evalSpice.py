@@ -42,7 +42,7 @@ testparams = [
     ("test_2.ckt", "test_2.exp"),
     ("test_3.ckt", "test_3.exp"),
     ("test_4.ckt", "test_4.exp")
-   ]
+]
 
 def checkdiff(Vout, Iout, expFile):
     """expected outputs are in `expFile`.  Read and compare."""
