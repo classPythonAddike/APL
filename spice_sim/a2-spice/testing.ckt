@@ -1,4 +1,5 @@
 .circuit
-V1 1 GND dc 10    # There can be comment here
-I1 GND 1 dc 10
+V1 n1 GND ac 5
+R2 n1 n2 5
+R1 n2 GND 0
 .end

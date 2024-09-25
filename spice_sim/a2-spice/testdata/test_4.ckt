@@ -1,3 +1,4 @@
+R1 GND 1 10
 .circuit
 R1 GND 1 10
 V1 GND 1 dc 10
