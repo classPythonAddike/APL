@@ -5,3 +5,6 @@
 *.pyc
 
 **/.ipynb_checkpoints/*
+
+kb_analysis/heatmap_samples/*
+demos/*
